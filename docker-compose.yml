@@ -1,0 +1,95 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    command: >
+      bash -c "
+        mongod --replSet rs0 --bind_ip_all &
+        MONGO_PID=$$!;
+        sleep 5;
+        mongosh --eval 'try { rs.status() } catch(e) { rs.initiate({ _id: \"rs0\", members: [{ _id: 0, host: \"mongo:27017\" }] }) }';
+        wait $$MONGO_PID;
+      "
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: mongosh --eval "db.adminCommand('ping')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jobs-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jobs-network
+
+  jobsorchestrator:
+    build:
+      context: .
+      dockerfile: JobsOrchestrator/Dockerfile
+    container_name: jobsorchestrator
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - MongoDb__ConnectionString=mongodb://mongo:27017/?replicaSet=rs0
+      - MongoDb__DatabaseName=jobsdb
+      - MongoDb__JobsCollection=jobs
+      - MongoDb__OutboxCollection=outbox
+      - MongoDb__DeadLetterCollection=deadletters
+      - RabbitMq__Host=rabbitmq
+      - RabbitMq__Username=guest
+      - RabbitMq__Password=guest
+      - RabbitMq__Exchange=jobs-exchange
+      - ApiKeys__Default=dev-key-please-change
+      - Jwt__Key=your-256-bit-secret-key-here-minimum-32-chars!!
+      - Jwt__Issuer=JobsOrchestrator
+      - Jwt__Audience=JobsOrchestratorAPI
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - jobs-network
+    volumes:
+      - ./logs:/app/logs
+    # Add restart policy
+    restart: unless-stopped
+    # Add health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    # Add command to wait before starting
+    command: sh -c "sleep 10 && dotnet JobsOrchestrator.dll"
+
+volumes:
+  rabbitmq-data:
+  mongo-data:
+
+networks:
+  jobs-network:
+    driver: bridge

@@ -1,0 +1,6 @@
+@JobsOrchestrator_HostAddress = http://localhost:5188
+
+GET {{JobsOrchestrator_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="JobsOrchestrator.Tests/JobsOrchestrator.Tests.csproj" />
+  <Project Path="JobsOrchestrator/JobsOrchestrator.csproj" />
+</Solution>
