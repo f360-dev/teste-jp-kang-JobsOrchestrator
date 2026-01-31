@@ -51,7 +51,7 @@ curl -X POST http://localhost:8080/api/auth/token
 
 ### Create a Job
 
-curl -X POST http://localhost:5000/api/jobs 
+curl -X POST http://localhost:8080/api/jobs 
 -H "Authorization: Bearer TOKEN" 
 -H "Content-Type: application/json" 
 -H "Idempotency-Key: $(uuidgen)" 
@@ -65,5 +65,5 @@ Where TOKEN is the previously generated authentication token.
 
 ### Get Job Status
 
-curl -X GET http://localhost:8080/api/jobs/<job-id> 
+curl -X GET http://localhost:8080/api/jobs/job-id
 -H "Authorization: Bearer $TOKEN"
